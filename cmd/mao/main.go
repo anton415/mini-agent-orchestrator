@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/cli"
+	"github.com/anton415/mini-agent-orchestrator/internal/input"
 )
 
 // Go CLI entrypoint for the Mini Agent Orchestrator (MAO).
@@ -34,7 +35,17 @@ func main() {
 			runCommandConfig.Name,
 			runCommandConfig.Force,
 			runCommandConfig.DryRun)
-	// Here we would call the function that executes the main logic of the `run` command, passing the validated configuration.
+
+		// Resolve the user's idea into plain text after flag validation. The parser
+		// guarantees that exactly one input source was provided: --idea or --input.
+		ideaText, err := input.ReadIdea(runCommandConfig.Idea, runCommandConfig.Input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error reading input:", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(ideaText)
+		// Here we would call the function that executes the main logic of the `run` command, passing the validated configuration.
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
