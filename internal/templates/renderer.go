@@ -9,6 +9,7 @@ import (
 )
 
 // templateFS contains the markdown templates bundled into the binary at build time.
+//go:embed files/*.tmpl
 var templateFS embed.FS
 
 // Artifact is a rendered file ready to be written to disk.
