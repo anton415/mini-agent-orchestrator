@@ -5,47 +5,31 @@ import (
 	"os"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/cli"
-	"github.com/anton415/mini-agent-orchestrator/internal/input"
+	"github.com/anton415/mini-agent-orchestrator/internal/workflow"
 )
 
-// Go CLI entrypoint for the Mini Agent Orchestrator (MAO).
+// main is the entry point of the mini-agent-orchestrator application.
 func main() {
-	// If the user runs mao without a command, it prints usage instructions and exits with status 1.
+	// Check if at least one command-line argument is provided (the command to run).
 	if len(os.Args) < 2 {
-		fmt.Println("usage: mao run --idea \"...\" --out ./artifacts/demo")
+		fmt.Fprintln(os.Stderr, "usage: mao run --idea \"...\" --out ./artifacts --name demo")
 		os.Exit(1)
 	}
 
-	// Switch statement to handle different commands.
+	// Switch on the first command-line argument to determine which command to execute.
 	switch os.Args[1] {
-	// If the command is "run", we call the ParseRunArgs function to parse the flags that come after "run".
 	case "run":
-		// Pass only the arguments after `run` to the run-command parser.
-		runCommandConfig, err := cli.ParseRunArgs(os.Args[2:])
-		// If there's an error parsing the arguments, print the error message and exit with status 1.
+		cfg, err := cli.ParseRunArgs(os.Args[2:])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
-		// For demonstration purposes, we print the parsed configuration. In a real application, we would use this configuration to execute the command's logic.
-		fmt.Printf("idea=%q input=%q out=%q name=%q force=%v dryRun=%v\n",
-			runCommandConfig.Idea,
-			runCommandConfig.Input,
-			runCommandConfig.Out,
-			runCommandConfig.Name,
-			runCommandConfig.Force,
-			runCommandConfig.DryRun)
 
-		// Resolve the user's idea into plain text after flag validation. The parser
-		// guarantees that exactly one input source was provided: --idea or --input.
-		ideaText, err := input.ReadIdea(runCommandConfig.Idea, runCommandConfig.Input)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error reading input:", err)
+		if err := workflow.Run(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
 
-		fmt.Println(ideaText)
-		// Here we would call the function that executes the main logic of the `run` command, passing the validated configuration.
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
