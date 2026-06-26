@@ -18,23 +18,34 @@ type Artifact struct {
 	Content  string
 }
 
-// RenderAll renders the full set of project artifacts from the embedded templates.
+// templateDefinition pairs an output filename with its embedded template path.
+type templateDefinition struct {
+	outputName   string
+	templatePath string
+}
+
+// templateDefinitions lists the artifacts to render in a fixed order. A slice is
+// used instead of a map so RenderAll produces a deterministic order: Go map
+// iteration order is intentionally randomized, which would make dry-run output
+// and tests unstable. Output filenames are kept separate from template paths so
+// templates can stay organized inside the package without changing the generated
+// artifact names.
+var templateDefinitions = []templateDefinition{
+	{outputName: "idea.md", templatePath: "files/idea.md.tmpl"},
+	{outputName: "spec.md", templatePath: "files/spec.md.tmpl"},
+	{outputName: "tasks.md", templatePath: "files/tasks.md.tmpl"},
+	{outputName: "review-checklist.md", templatePath: "files/review-checklist.md.tmpl"},
+}
+
+// RenderAll renders the full set of project artifacts from the embedded
+// templates, returning them in the order declared by templateDefinitions.
 func RenderAll(project model.Project) ([]Artifact, error) {
-	// Keep output filenames separate from template paths so templates can stay
-	// organized inside the package without changing the generated artifact names.
-	files := map[string]string{
-		"idea.md":             "files/idea.md.tmpl",
-		"spec.md":             "files/spec.md.tmpl",
-		"tasks.md":            "files/tasks.md.tmpl",
-		"review-checklist.md": "files/review-checklist.md.tmpl",
-	}
+	artifacts := make([]Artifact, 0, len(templateDefinitions))
 
-	var artifacts []Artifact
-
-	for outputName, templatePath := range files {
+	for _, def := range templateDefinitions {
 		// Parse and execute each template independently so the returned error points
 		// at the specific template that failed.
-		tmpl, err := template.ParseFS(templateFS, templatePath)
+		tmpl, err := template.ParseFS(templateFS, def.templatePath)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +58,7 @@ func RenderAll(project model.Project) ([]Artifact, error) {
 
 		// Append the rendered content to the list of artifacts.
 		artifacts = append(artifacts, Artifact{
-			Filename: outputName,
+			Filename: def.outputName,
 			Content:  buf.String(),
 		})
 	}
