@@ -37,3 +37,6 @@ The command works:
 
 ```bash
 mao run --idea "Build a personal book library" --out ./artifacts/demo
+```
+
+Running this command creates the `./artifacts/demo` folder containing all five artifacts (`idea.md`, `spec.md`, `tasks.md`, `review-checklist.md`, and `metadata.json`).
