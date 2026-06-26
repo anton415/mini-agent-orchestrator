@@ -1,5 +1,7 @@
 # Mini Agent Orchestrator
 
+[![Go](https://github.com/anton415/mini-agent-orchestrator/actions/workflows/go.yml/badge.svg)](https://github.com/anton415/mini-agent-orchestrator/actions/workflows/go.yml)
+
 Mini Agent Orchestrator is a small Go CLI tool that turns a raw project idea into a fixed set of development artifacts.
 
 ## Status
