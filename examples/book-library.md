@@ -1,0 +1,1 @@
+Build a personal book library that lets a reader catalog books they own, track reading status, and record simple notes or ratings. Start with a local single-user workflow and defer social features.
