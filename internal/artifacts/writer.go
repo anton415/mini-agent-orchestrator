@@ -53,6 +53,6 @@ func WriteAll(outDir string, project model.Project, items []templates.Artifact, 
 		return err
 	}
 
-	// Write the metadata JSON file.
-	return os.WriteFile(metadataPath, data, 0644)
+	// Write the metadata JSON file with a final newline like the markdown artifacts.
+	return os.WriteFile(metadataPath, append(data, '\n'), 0644)
 }

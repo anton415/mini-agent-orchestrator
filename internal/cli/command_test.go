@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestParseRunArgsAcceptsOneInputSource checks the two valid ways to provide
@@ -103,6 +104,7 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 		"--idea", "Build a personal book library",
 		"--out", "./artifacts/demo",
 		"--name", "demo",
+		"--created-at", "2026-06-25T11:23:10Z",
 		"--force",
 		"--dry-run",
 	})
@@ -113,13 +115,27 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 	// This expected config combines the required --idea input with explicit
 	// values for the optional output, name, force, and dry-run flags.
 	want := RunConfig{
-		Idea:   "Build a personal book library",
-		Out:    "./artifacts/demo",
-		Name:   "demo",
-		Force:  true,
-		DryRun: true,
+		Idea:      "Build a personal book library",
+		Out:       "./artifacts/demo",
+		Name:      "demo",
+		CreatedAt: time.Date(2026, 6, 25, 11, 23, 10, 0, time.UTC),
+		Force:     true,
+		DryRun:    true,
 	}
 	assertRunConfig(t, got, want)
+}
+
+func TestParseRunArgsRejectsInvalidCreatedAt(t *testing.T) {
+	_, err := ParseRunArgs([]string{
+		"--idea", "Build a personal book library",
+		"--created-at", "June 25",
+	})
+	if err == nil {
+		t.Fatal("ParseRunArgs returned nil error")
+	}
+	if !strings.Contains(err.Error(), "invalid --created-at") {
+		t.Fatalf("error = %q, want invalid --created-at message", err.Error())
+	}
 }
 
 // assertRunConfig keeps individual tests focused on their argument setup while
