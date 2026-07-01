@@ -24,6 +24,7 @@ mao run --input ./examples/book-library.md --out ./artifacts --name book-library
 
 A committed sample input is available at `examples/book-library.md`.
 The corresponding expected artifact set is checked in at `examples/expected-output/book-library/`, outside the ignored `/artifacts/` directory.
+The expected `metadata.json` omits the run-specific `CreatedAt` value so the example stays deterministic.
 
 ## Output
 ```
