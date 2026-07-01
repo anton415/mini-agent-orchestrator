@@ -67,6 +67,44 @@ func TestRenderAllRendersIdeaValues(t *testing.T) {
 	}
 }
 
+func TestRenderAllTemplatesAvoidGenericTODOs(t *testing.T) {
+	project := model.NewProject("demo", "a small idea")
+
+	artifacts, err := RenderAll(project)
+	if err != nil {
+		t.Fatalf("RenderAll returned error: %v", err)
+	}
+
+	for _, artifact := range artifacts {
+		if strings.Contains(artifact.Content, "TODO") {
+			t.Errorf("%s contains generic TODO marker\ncontent:\n%s", artifact.Filename, artifact.Content)
+		}
+	}
+}
+
+func TestRenderAllTasksTemplateAvoidsRepoSpecificTasks(t *testing.T) {
+	project := model.NewProject("demo", "a small idea")
+
+	artifacts, err := RenderAll(project)
+	if err != nil {
+		t.Fatalf("RenderAll returned error: %v", err)
+	}
+
+	tasks := artifactContent(t, artifacts, "tasks.md")
+	for _, oldDetail := range []string{
+		"Create Go module",
+		"Add CLI entrypoint",
+		"Read idea from `--idea`",
+		"Read idea from `--input`",
+		"Prevent overwrite without `--force`",
+		"Add `--dry-run`",
+	} {
+		if strings.Contains(tasks, oldDetail) {
+			t.Errorf("tasks.md contains repo-specific task %q\ncontent:\n%s", oldDetail, tasks)
+		}
+	}
+}
+
 func artifactContent(t *testing.T, artifacts []Artifact, filename string) string {
 	t.Helper()
 
