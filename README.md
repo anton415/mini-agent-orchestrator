@@ -24,7 +24,11 @@ mao run --input ./examples/book-library.md --out ./artifacts --name book-library
 
 A committed sample input is available at `examples/book-library.md`.
 The corresponding expected artifact set is checked in at `examples/expected-output/book-library/`, outside the ignored `/artifacts/` directory.
-The expected `metadata.json` omits the run-specific `CreatedAt` value so the example stays deterministic.
+To regenerate a byte-for-byte comparable fixture, pass the fixed timestamp used by the committed metadata:
+
+```bash
+mao run --input ./examples/book-library.md --out ./examples/expected-output --name book-library --created-at 2026-06-25T11:23:10Z --force
+```
 
 ## Output
 ```

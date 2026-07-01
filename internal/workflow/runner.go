@@ -20,6 +20,9 @@ func Run(cfg cli.RunConfig) error {
 
 	// Create a new project model using the provided name and idea text.
 	project := model.NewProject(cfg.Name, ideaText)
+	if !cfg.CreatedAt.IsZero() {
+		project = model.NewProjectAt(cfg.Name, ideaText, cfg.CreatedAt)
+	}
 
 	// Render all templates for the project.
 	items, err := templates.RenderAll(project)
