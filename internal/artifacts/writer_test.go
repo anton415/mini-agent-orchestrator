@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
-	"github.com/anton415/mini-agent-orchestrator/internal/templates"
 )
 
 func TestWriteAllWritesArtifactsAndMetadata(t *testing.T) {
@@ -173,10 +172,10 @@ func testProject() model.Project {
 	}
 }
 
-func testArtifacts() []templates.Artifact {
+func testArtifacts() []Artifact {
 	// These mirror the artifact filenames produced by templates.RenderAll without
 	// depending on template rendering in this writer-focused test package.
-	return []templates.Artifact{
+	return []Artifact{
 		{Filename: "idea.md", Content: "# Idea\n"},
 		{Filename: "spec.md", Content: "# Spec\n"},
 		{Filename: "tasks.md", Content: "# Tasks\n"},

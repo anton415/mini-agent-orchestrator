@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/anton415/mini-agent-orchestrator/internal/artifacts"
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
 )
 
@@ -105,10 +106,10 @@ func TestRenderAllTasksTemplateAvoidsRepoSpecificTasks(t *testing.T) {
 	}
 }
 
-func artifactContent(t *testing.T, artifacts []Artifact, filename string) string {
+func artifactContent(t *testing.T, rendered []artifacts.Artifact, filename string) string {
 	t.Helper()
 
-	for _, artifact := range artifacts {
+	for _, artifact := range rendered {
 		if artifact.Filename == filename {
 			return artifact.Content
 		}
