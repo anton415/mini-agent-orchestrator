@@ -55,3 +55,8 @@ Not included:
 * GitHub integration
 * Web UI
 * configurable workflows
+
+## v0.2 Scope
+
+v0.2 is scoped to optional prompt-template generation for the existing deterministic workflow.
+See `docs/v0.2.md` for the planned prompt artifact set and explicit non-goals.
