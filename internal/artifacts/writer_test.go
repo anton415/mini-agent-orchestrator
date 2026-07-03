@@ -74,6 +74,12 @@ func TestWriteAllRefusesOverwriteWithoutForce(t *testing.T) {
 			wantPath:   "metadata.json",
 			wantExists: "file already exists",
 		},
+		{
+			name:       "prompt",
+			setupPath:  filepath.Join("prompts", "01-normalize-idea.prompt.md"),
+			wantPath:   filepath.Join("prompts", "01-normalize-idea.prompt.md"),
+			wantExists: "file already exists",
+		},
 	}
 
 	for _, test := range tests {
@@ -89,6 +95,9 @@ func TestWriteAllRefusesOverwriteWithoutForce(t *testing.T) {
 			}
 
 			existingPath := filepath.Join(projectDir, test.setupPath)
+			if err := os.MkdirAll(filepath.Dir(existingPath), 0755); err != nil {
+				t.Fatalf("create existing file parent directory: %v", err)
+			}
 			if err := os.WriteFile(existingPath, []byte("keep me"), 0644); err != nil {
 				t.Fatalf("write existing file: %v", err)
 			}
@@ -119,8 +128,12 @@ func TestWriteAllOverwritesExistingFilesWithForce(t *testing.T) {
 		t.Fatalf("create project directory: %v", err)
 	}
 
-	for _, name := range []string{"idea.md", "metadata.json"} {
-		if err := os.WriteFile(filepath.Join(projectDir, name), []byte("old content"), 0644); err != nil {
+	for _, name := range []string{"idea.md", "metadata.json", filepath.Join("prompts", "01-normalize-idea.prompt.md")} {
+		path := filepath.Join(projectDir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("create existing file parent directory: %v", err)
+		}
+		if err := os.WriteFile(path, []byte("old content"), 0644); err != nil {
 			t.Fatalf("write existing %s: %v", name, err)
 		}
 	}
@@ -168,6 +181,7 @@ func testArtifacts() []templates.Artifact {
 		{Filename: "spec.md", Content: "# Spec\n"},
 		{Filename: "tasks.md", Content: "# Tasks\n"},
 		{Filename: "review-checklist.md", Content: "# Review Checklist\n"},
+		{Filename: filepath.Join("prompts", "01-normalize-idea.prompt.md"), Content: "# Prompt\n"},
 	}
 }
 

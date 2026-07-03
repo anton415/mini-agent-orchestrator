@@ -15,6 +15,7 @@ type RunConfig struct {
 	CreatedAt time.Time
 	Force     bool
 	DryRun    bool
+	Prompts   bool
 }
 
 // ParseRunArgs parses flags that appear after `mao run`.
@@ -34,6 +35,7 @@ func ParseRunArgs(args []string) (RunConfig, error) {
 	runCommandFlags.StringVar(&createdAt, "created-at", "", "fixed metadata creation time in RFC3339 format")
 	runCommandFlags.BoolVar(&runCommandConfig.Force, "force", false, "overwrite existing files")
 	runCommandFlags.BoolVar(&runCommandConfig.DryRun, "dry-run", false, "show what would be created without writing files")
+	runCommandFlags.BoolVar(&runCommandConfig.Prompts, "prompts", false, "generate copyable manual LLM prompt files")
 
 	// 3. Parse user args into the struct fields.
 	// Parse the flags from the provided arguments. If there's an error, return it.

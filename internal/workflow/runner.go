@@ -7,6 +7,7 @@ import (
 	"github.com/anton415/mini-agent-orchestrator/internal/cli"
 	"github.com/anton415/mini-agent-orchestrator/internal/input"
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
+	"github.com/anton415/mini-agent-orchestrator/internal/prompts"
 	"github.com/anton415/mini-agent-orchestrator/internal/templates"
 )
 
@@ -28,6 +29,15 @@ func Run(cfg cli.RunConfig) error {
 	items, err := templates.RenderAll(project)
 	if err != nil {
 		return fmt.Errorf("render templates: %w", err)
+	}
+
+	if cfg.Prompts {
+		// Render companion prompt files for the manual LLM workflow.
+		promptItems, err := prompts.RenderAll(project)
+		if err != nil {
+			return fmt.Errorf("render prompts: %w", err)
+		}
+		items = append(items, promptItems...)
 	}
 
 	// Handle dry run mode: if enabled, print the files that would be created without actually writing them to disk.
