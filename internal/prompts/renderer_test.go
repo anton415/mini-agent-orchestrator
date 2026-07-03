@@ -3,6 +3,7 @@ package prompts
 import (
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
 )
@@ -77,6 +78,60 @@ func TestRenderAllPromptsAvoidGenericTODOs(t *testing.T) {
 	for _, artifact := range artifacts {
 		if strings.Contains(artifact.Content, "TODO") {
 			t.Errorf("%s contains generic TODO marker\ncontent:\n%s", artifact.Filename, artifact.Content)
+		}
+	}
+}
+
+func TestRenderAllParseErrorIncludesTemplateContext(t *testing.T) {
+	project := model.NewProject("demo", "a small idea")
+	definitions := []templateDefinition{
+		{
+			outputName:   "prompts/bad.prompt.md",
+			templatePath: "files/bad.prompt.md.tmpl",
+		},
+	}
+
+	_, err := renderAll(fstest.MapFS{
+		"files/bad.prompt.md.tmpl": {Data: []byte("{{")},
+	}, definitions, project)
+	if err == nil {
+		t.Fatal("renderAll returned nil error")
+	}
+
+	for _, want := range []string{
+		"parse prompt template",
+		"files/bad.prompt.md.tmpl",
+		"prompts/bad.prompt.md",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want message containing %q", err.Error(), want)
+		}
+	}
+}
+
+func TestRenderAllExecuteErrorIncludesTemplateContext(t *testing.T) {
+	project := model.NewProject("demo", "a small idea")
+	definitions := []templateDefinition{
+		{
+			outputName:   "prompts/bad.prompt.md",
+			templatePath: "files/bad.prompt.md.tmpl",
+		},
+	}
+
+	_, err := renderAll(fstest.MapFS{
+		"files/bad.prompt.md.tmpl": {Data: []byte("{{.MissingField}}")},
+	}, definitions, project)
+	if err == nil {
+		t.Fatal("renderAll returned nil error")
+	}
+
+	for _, want := range []string{
+		"execute prompt template",
+		"files/bad.prompt.md.tmpl",
+		"prompts/bad.prompt.md",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want message containing %q", err.Error(), want)
 		}
 	}
 }

@@ -7,11 +7,16 @@ import (
 	"path/filepath"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
-	"github.com/anton415/mini-agent-orchestrator/internal/templates"
 )
 
+// Artifact is a rendered file ready to be written to disk.
+type Artifact struct {
+	Filename string
+	Content  string
+}
+
 // WriteAll writes rendered project artifacts and project metadata into a project directory.
-func WriteAll(outDir string, project model.Project, items []templates.Artifact, force bool) error {
+func WriteAll(outDir string, project model.Project, items []Artifact, force bool) error {
 	// Create the project directory if it doesn't exist.
 	projectDir := filepath.Join(outDir, project.Name)
 

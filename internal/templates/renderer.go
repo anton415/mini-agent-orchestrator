@@ -5,18 +5,14 @@ import (
 	"embed"
 	"text/template"
 
+	"github.com/anton415/mini-agent-orchestrator/internal/artifacts"
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
 )
 
 // templateFS contains the markdown templates bundled into the binary at build time.
+//
 //go:embed files/*.tmpl
 var templateFS embed.FS
-
-// Artifact is a rendered file ready to be written to disk.
-type Artifact struct {
-	Filename string
-	Content  string
-}
 
 // templateDefinition pairs an output filename with its embedded template path.
 type templateDefinition struct {
@@ -39,8 +35,8 @@ var templateDefinitions = []templateDefinition{
 
 // RenderAll renders the full set of project artifacts from the embedded
 // templates, returning them in the order declared by templateDefinitions.
-func RenderAll(project model.Project) ([]Artifact, error) {
-	artifacts := make([]Artifact, 0, len(templateDefinitions))
+func RenderAll(project model.Project) ([]artifacts.Artifact, error) {
+	rendered := make([]artifacts.Artifact, 0, len(templateDefinitions))
 
 	for _, def := range templateDefinitions {
 		// Parse and execute each template independently so the returned error points
@@ -57,11 +53,11 @@ func RenderAll(project model.Project) ([]Artifact, error) {
 		}
 
 		// Append the rendered content to the list of artifacts.
-		artifacts = append(artifacts, Artifact{
+		rendered = append(rendered, artifacts.Artifact{
 			Filename: def.outputName,
 			Content:  buf.String(),
 		})
 	}
 
-	return artifacts, nil
+	return rendered, nil
 }
