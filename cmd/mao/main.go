@@ -12,7 +12,7 @@ import (
 func main() {
 	// Check if at least one command-line argument is provided (the command to run).
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: mao run --idea \"...\" --out ./artifacts --name demo")
+		fmt.Fprintln(os.Stderr, "usage: mao run --idea \"...\" --out ./artifacts --name demo [--prompts]")
 		os.Exit(1)
 	}
 

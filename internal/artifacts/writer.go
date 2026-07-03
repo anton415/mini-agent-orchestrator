@@ -23,6 +23,11 @@ func WriteAll(outDir string, project model.Project, items []templates.Artifact, 
 	// Write each artifact to the project directory.
 	for _, item := range items {
 		path := filepath.Join(projectDir, item.Filename)
+		parentDir := filepath.Dir(path)
+
+		if err := os.MkdirAll(parentDir, 0755); err != nil {
+			return err
+		}
 
 		if !force {
 			// Refuse to overwrite generated artifacts unless the caller explicitly opts in.

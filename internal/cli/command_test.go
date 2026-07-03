@@ -107,6 +107,7 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 		"--created-at", "2026-06-25T11:23:10Z",
 		"--force",
 		"--dry-run",
+		"--prompts",
 	})
 	if err != nil {
 		t.Fatalf("ParseRunArgs returned an error: %v", err)
@@ -121,6 +122,7 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 		CreatedAt: time.Date(2026, 6, 25, 11, 23, 10, 0, time.UTC),
 		Force:     true,
 		DryRun:    true,
+		Prompts:   true,
 	}
 	assertRunConfig(t, got, want)
 }

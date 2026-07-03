@@ -6,7 +6,7 @@ Mini Agent Orchestrator is a small Go CLI tool that turns a raw project idea int
 
 ## Status
 
-v0 — deterministic CLI workflow runner.
+v0.2 — deterministic CLI workflow runner with optional prompt artifacts.
 
 ## Usage
 
@@ -20,6 +20,12 @@ Or:
 mao run --input ./examples/book-library.md --out ./artifacts --name book-library
 ```
 
+To also generate copyable prompt files for a manual LLM workflow:
+
+```bash
+mao run --input ./examples/book-library.md --out ./artifacts --name book-library --prompts
+```
+
 ## Example
 
 A committed sample input is available at `examples/book-library.md`.
@@ -31,6 +37,9 @@ mao run --input ./examples/book-library.md --out ./examples/expected-output --na
 ```
 
 ## Output
+
+Default output:
+
 ```
 artifacts/book-library/
   idea.md
@@ -38,6 +47,17 @@ artifacts/book-library/
   tasks.md
   review-checklist.md
   metadata.json
+```
+
+With `--prompts`, the project folder also includes:
+
+```
+artifacts/book-library/
+  prompts/
+    01-normalize-idea.prompt.md
+    02-generate-spec.prompt.md
+    03-generate-tasks.prompt.md
+    04-review-checklist.prompt.md
 ```
 
 ## v0 Scope
@@ -58,5 +78,5 @@ Not included:
 
 ## v0.2 Scope
 
-v0.2 is scoped to optional prompt-template generation for the existing deterministic workflow.
-See `docs/v0.2.md` for the planned prompt artifact set and explicit non-goals.
+v0.2 adds optional prompt-template generation for the existing deterministic workflow.
+See `docs/v0.2.md` for the prompt artifact set and explicit non-goals.
