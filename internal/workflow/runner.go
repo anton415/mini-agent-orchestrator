@@ -31,7 +31,7 @@ func Run(cfg cli.RunConfig) error {
 		return fmt.Errorf("render templates: %w", err)
 	}
 
-	if cfg.Prompts {
+	if cfg.IncludePrompts {
 		// Render companion prompt files for the manual LLM workflow.
 		promptItems, err := prompts.RenderAll(project)
 		if err != nil {

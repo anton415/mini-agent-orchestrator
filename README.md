@@ -23,7 +23,7 @@ mao run --input ./examples/book-library.md --out ./artifacts --name book-library
 To also generate copyable prompt files for a manual LLM workflow:
 
 ```bash
-mao run --input ./examples/book-library.md --out ./artifacts --name book-library --prompts
+mao run --input ./examples/book-library.md --out ./artifacts --name book-library --include-prompts
 ```
 
 ## Example
@@ -49,7 +49,7 @@ artifacts/book-library/
   metadata.json
 ```
 
-With `--prompts`, the project folder also includes:
+With `--include-prompts`, the project folder also includes:
 
 ```
 artifacts/book-library/
