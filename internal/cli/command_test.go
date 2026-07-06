@@ -107,7 +107,7 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 		"--created-at", "2026-06-25T11:23:10Z",
 		"--force",
 		"--dry-run",
-		"--prompts",
+		"--include-prompts",
 	})
 	if err != nil {
 		t.Fatalf("ParseRunArgs returned an error: %v", err)
@@ -116,13 +116,13 @@ func TestParseRunArgsParsesOptionalFlags(t *testing.T) {
 	// This expected config combines the required --idea input with explicit
 	// values for the optional output, name, force, and dry-run flags.
 	want := RunConfig{
-		Idea:      "Build a personal book library",
-		Out:       "./artifacts/demo",
-		Name:      "demo",
-		CreatedAt: time.Date(2026, 6, 25, 11, 23, 10, 0, time.UTC),
-		Force:     true,
-		DryRun:    true,
-		Prompts:   true,
+		Idea:           "Build a personal book library",
+		Out:            "./artifacts/demo",
+		Name:           "demo",
+		CreatedAt:      time.Date(2026, 6, 25, 11, 23, 10, 0, time.UTC),
+		Force:          true,
+		DryRun:         true,
+		IncludePrompts: true,
 	}
 	assertRunConfig(t, got, want)
 }
