@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/anton415/mini-agent-orchestrator/internal/model"
 )
@@ -27,7 +28,11 @@ func WriteAll(outDir string, project model.Project, items []Artifact, force bool
 
 	// Write each artifact to the project directory.
 	for _, item := range items {
-		path := filepath.Join(projectDir, item.Filename)
+		path, err := artifactPath(projectDir, item.Filename)
+		if err != nil {
+			return err
+		}
+
 		parentDir := filepath.Dir(path)
 
 		if err := os.MkdirAll(parentDir, 0755); err != nil {
@@ -65,4 +70,59 @@ func WriteAll(outDir string, project model.Project, items []Artifact, force bool
 
 	// Write the metadata JSON file with a final newline like the markdown artifacts.
 	return os.WriteFile(metadataPath, append(data, '\n'), 0644)
+}
+
+func artifactPath(projectDir string, filename string) (string, error) {
+	if filename == "" {
+		return "", fmt.Errorf("invalid artifact path %q: path must be relative", filename)
+	}
+	if isAbsoluteArtifactPath(filename) {
+		return "", fmt.Errorf("invalid artifact path %q: absolute paths are not allowed", filename)
+	}
+	if hasParentDirSegment(filename) {
+		return "", fmt.Errorf("invalid artifact path %q: parent directory references are not allowed", filename)
+	}
+
+	cleaned := filepath.Clean(filename)
+	if cleaned == "." {
+		return "", fmt.Errorf("invalid artifact path %q: path must name a file", filename)
+	}
+
+	path := filepath.Join(projectDir, cleaned)
+	rel, err := filepath.Rel(projectDir, path)
+	if err != nil {
+		return "", fmt.Errorf("invalid artifact path %q: %w", filename, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("invalid artifact path %q: path escapes project directory", filename)
+	}
+
+	return path, nil
+}
+
+func isAbsoluteArtifactPath(filename string) bool {
+	if filepath.IsAbs(filename) || strings.HasPrefix(filename, `\`) {
+		return true
+	}
+
+	return len(filename) >= 2 &&
+		isASCIILetter(filename[0]) &&
+		filename[1] == ':'
+}
+
+func hasParentDirSegment(filename string) bool {
+	parts := strings.FieldsFunc(filename, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
+	for _, part := range parts {
+		if part == ".." {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isASCIILetter(b byte) bool {
+	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
 }

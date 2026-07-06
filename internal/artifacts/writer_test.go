@@ -162,6 +162,61 @@ func TestWriteAllOverwritesExistingFilesWithForce(t *testing.T) {
 	assertProject(t, got, project)
 }
 
+func TestWriteAllRejectsUnsafeArtifactPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+	}{
+		{
+			name:     "empty",
+			filename: "",
+		},
+		{
+			name:     "absolute",
+			filename: filepath.Join(string(os.PathSeparator), "tmp", "artifact.md"),
+		},
+		{
+			name:     "parent prefix",
+			filename: "../outside.md",
+		},
+		{
+			name:     "parent nested",
+			filename: "prompts/../outside.md",
+		},
+		{
+			name:     "windows rooted",
+			filename: `\tmp\artifact.md`,
+		},
+		{
+			name:     "windows drive",
+			filename: `C:\tmp\artifact.md`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			outDir := t.TempDir()
+			project := testProject()
+			items := []Artifact{
+				{Filename: test.filename, Content: "# Unsafe\n"},
+			}
+
+			err := WriteAll(outDir, project, items, false)
+			if err == nil {
+				t.Fatal("WriteAll returned nil error")
+			}
+			if !strings.Contains(err.Error(), "invalid artifact path") {
+				t.Fatalf("error = %q, want invalid artifact path", err.Error())
+			}
+
+			projectDir := filepath.Join(outDir, project.Name)
+			if _, err := os.Stat(filepath.Join(projectDir, "metadata.json")); !os.IsNotExist(err) {
+				t.Fatalf("metadata.json stat error = %v, want not exist", err)
+			}
+		})
+	}
+}
+
 func testProject() model.Project {
 	// Use a fixed timestamp so metadata assertions are deterministic.
 	return model.Project{
