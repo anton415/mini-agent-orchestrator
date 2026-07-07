@@ -1,0 +1,53 @@
+# Prompt: Generate Tasks
+
+## Project
+
+book-library
+
+## Raw idea
+
+Build a personal book library that lets a reader catalog books they own, track reading status, and record simple notes or ratings. Start with a local single-user workflow and defer social features.
+
+## Task
+
+Create the `tasks.md` artifact for the fixed workflow. If `idea.md` or `spec.md` exists, use those artifacts as the source of truth. Break the first version into practical implementation phases without expanding the product scope.
+
+## Expected output
+
+Return Markdown only, using this structure:
+
+```markdown
+# Tasks
+
+## Phase 1 - Project definition
+
+- [ ] Confirm the primary user and first valuable outcome
+- [ ] Identify the core workflow and the simplest successful path
+- [ ] Record constraints, dependencies, and explicit non-goals
+
+## Phase 2 - Foundation
+
+- [ ] Choose the runtime, storage, and integration boundaries
+- [ ] Set up the project structure using existing team conventions
+- [ ] Define configuration, environment, and deployment assumptions
+
+## Phase 3 - Core behavior
+
+- [ ] Implement the smallest end-to-end workflow
+- [ ] Add validation and clear error states for expected inputs
+- [ ] Produce the user-visible output required by the workflow
+
+## Phase 4 - Quality and release
+
+- [ ] Add tests for the happy path, edge cases, and failure modes
+- [ ] Write usage documentation and one realistic example
+- [ ] Run release checks and capture known follow-up work
+```
+
+## Constraints
+
+- Do not add out-of-scope features.
+- Do not use network access, API calls, or API keys.
+- Keep tasks implementation-oriented and reviewable.
+- Avoid vendor, framework, or service assumptions unless the source artifacts require them.
+- Include testing and release checks for the first useful workflow.

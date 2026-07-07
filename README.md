@@ -36,10 +36,17 @@ Prompt mode only writes Markdown files. The CLI does not call an LLM API or send
 
 A committed sample input is available at `examples/book-library.md`.
 The corresponding expected artifact set is checked in at `examples/expected-output/book-library/`, outside the ignored `/artifacts/` directory.
+The prompt-mode example uses the same input and is checked in at [examples/expected-output-with-prompts/book-library/](examples/expected-output-with-prompts/book-library/), including the companion files under `prompts/`.
 To regenerate a byte-for-byte comparable fixture, pass the fixed timestamp used by the committed metadata:
 
 ```bash
 mao run --input ./examples/book-library.md --out ./examples/expected-output --name book-library --created-at 2026-06-25T11:23:10Z --force
+```
+
+To regenerate the prompt-mode fixture:
+
+```bash
+mao run --input ./examples/book-library.md --out ./examples/expected-output-with-prompts --name book-library --created-at 2026-06-25T11:23:10Z --include-prompts --force
 ```
 
 ## Output
