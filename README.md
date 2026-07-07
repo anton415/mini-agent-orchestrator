@@ -20,11 +20,17 @@ Or:
 mao run --input ./examples/book-library.md --out ./artifacts --name book-library
 ```
 
-To also generate copyable prompt files for a manual LLM workflow:
+To also generate deterministic prompt files for a manual copy/paste LLM workflow:
 
 ```bash
-mao run --input ./examples/book-library.md --out ./artifacts --name book-library --include-prompts
+mao run \
+  --idea "Build a personal book library" \
+  --out ./artifacts \
+  --name book-library \
+  --include-prompts
 ```
+
+Prompt mode only writes Markdown files. The CLI does not call an LLM API or send the idea to any external provider.
 
 ## Example
 
@@ -49,10 +55,15 @@ artifacts/book-library/
   metadata.json
 ```
 
-With `--include-prompts`, the project folder also includes:
+With `--include-prompts`:
 
 ```
 artifacts/book-library/
+  idea.md
+  spec.md
+  tasks.md
+  review-checklist.md
+  metadata.json
   prompts/
     01-normalize-idea.prompt.md
     02-generate-spec.prompt.md
@@ -79,4 +90,5 @@ Not included:
 ## v0.2 Scope
 
 v0.2 adds optional prompt-template generation for the existing deterministic workflow.
+The generated prompts are companion artifacts for external chat tools: copy a prompt into an assistant, use the answer however you choose, and keep provider setup outside this CLI.
 See `docs/v0.2.md` for the prompt artifact set and explicit non-goals.
