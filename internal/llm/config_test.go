@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestLoadConfigFromEnvAllowsMissingValuesWhenDisabled(t *testing.T) {
-	clearLLMEnv(t)
+func TestLoadConfigFromEnvDoesNotReadValuesWhenDisabled(t *testing.T) {
+	setValidLLMEnv(t)
 
 	got, err := LoadConfigFromEnv(false)
 	if err != nil {

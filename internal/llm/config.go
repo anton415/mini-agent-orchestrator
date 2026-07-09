@@ -27,16 +27,16 @@ type Config struct {
 
 // LoadConfigFromEnv reads LLM configuration from environment variables.
 func LoadConfigFromEnv(enabled bool) (Config, error) {
+	if !enabled {
+		return Config{}, nil
+	}
+
 	cfg := Config{
-		Enabled:  enabled,
+		Enabled:  true,
 		Provider: strings.TrimSpace(os.Getenv(EnvProvider)),
 		BaseURL:  strings.TrimSpace(os.Getenv(EnvBaseURL)),
 		Model:    strings.TrimSpace(os.Getenv(EnvModel)),
 		APIKey:   strings.TrimSpace(os.Getenv(EnvAPIKey)),
-	}
-
-	if !enabled {
-		return cfg, nil
 	}
 
 	if err := cfg.Validate(); err != nil {
