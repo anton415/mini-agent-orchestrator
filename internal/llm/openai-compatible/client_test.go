@@ -173,6 +173,42 @@ func TestGenerateReturnsUsefulErrorForNon2xxResponse(t *testing.T) {
 	}
 }
 
+func TestGenerateRedactsSecretBeforeTruncatingLongNon2xxResponse(t *testing.T) {
+	const secret = "secret-value-that-crosses-boundary"
+	longPrefix := strings.Repeat("x", 4090)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]string{
+				"message": longPrefix + secret,
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := newTestClientWithAPIKey(t, server.URL, secret)
+
+	_, err := client.Generate(context.Background(), llm.GenerateRequest{
+		Prompt: "Generate idea.md",
+	})
+	if err == nil {
+		t.Fatal("Generate returned nil error")
+	}
+
+	message := err.Error()
+	if strings.Contains(message, secret) {
+		t.Fatalf("error leaked full API key: %q", message)
+	}
+	if leakedPrefix := secret[:6]; strings.Contains(message, leakedPrefix) {
+		t.Fatalf("error leaked API key prefix %q: %q", leakedPrefix, message)
+	}
+	if !strings.Contains(message, "...[truncated]") {
+		t.Fatalf("error = %q, want truncated marker", message)
+	}
+}
+
 func TestGenerateRejectsMalformedSuccessResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -227,12 +263,18 @@ func TestGenerateRespectsContextCancellation(t *testing.T) {
 func newTestClient(t *testing.T, baseURL string) *Client {
 	t.Helper()
 
+	return newTestClientWithAPIKey(t, baseURL, "sk-test-secret")
+}
+
+func newTestClientWithAPIKey(t *testing.T, baseURL string, apiKey string) *Client {
+	t.Helper()
+
 	client, err := NewClient(llm.Config{
 		Enabled:  true,
 		Provider: llm.ProviderOpenAICompatible,
 		BaseURL:  baseURL,
 		Model:    "configured-model",
-		APIKey:   "sk-test-secret",
+		APIKey:   apiKey,
 	})
 	if err != nil {
 		t.Fatalf("NewClient returned error: %v", err)

@@ -179,11 +179,11 @@ func (client *Client) errorMessage(body []byte) string {
 
 func (client *Client) redact(message string) string {
 	message = strings.TrimSpace(message)
-	if len(message) > 4096 {
-		message = message[:4096] + "...[truncated]"
-	}
 	if client.apiKey != "" {
 		message = strings.ReplaceAll(message, client.apiKey, "[redacted]")
+	}
+	if len(message) > 4096 {
+		message = message[:4096] + "...[truncated]"
 	}
 
 	return message
