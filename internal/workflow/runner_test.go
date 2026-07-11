@@ -414,6 +414,48 @@ func TestRunLLMChecksDirectoryWritabilityBeforeProviderCalls(t *testing.T) {
 	}
 }
 
+func TestRunLLMRejectsSymlinkedOutputBeforeProviderCalls(t *testing.T) {
+	server, capturedPrompts := newWorkflowLLMServer(t, []string{
+		"# Generated Idea",
+		"# Generated Specification",
+		"# Generated Tasks",
+		"# Generated Review Checklist",
+	}, -1)
+	setValidWorkflowLLMEnv(t, server.URL+"/v1", "sk-test-secret")
+
+	outDir := t.TempDir()
+	projectDir := filepath.Join(outDir, "book-library")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("create project directory: %v", err)
+	}
+	outsidePath := filepath.Join(t.TempDir(), "outside-idea.md")
+	if err := os.Symlink(outsidePath, filepath.Join(projectDir, "idea.md")); err != nil {
+		t.Skipf("symlinks are not available in this test environment: %v", err)
+	}
+
+	err := Run(cli.RunConfig{
+		Idea:  "Build a personal book library",
+		Out:   outDir,
+		Name:  "book-library",
+		Force: true,
+		LLM:   true,
+	})
+	if err == nil {
+		t.Fatal("Run returned nil error for symlinked output")
+	}
+	for _, want := range []string{"check artifact output", "symbolic links are not allowed", "idea.md"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want message containing %q", err.Error(), want)
+		}
+	}
+	if got := len(capturedPrompts()); got != 0 {
+		t.Fatalf("provider calls = %d, want 0 when output symlink preflight fails", got)
+	}
+	if _, statErr := os.Stat(outsidePath); !os.IsNotExist(statErr) {
+		t.Fatalf("outside target stat error = %v, want not exist", statErr)
+	}
+}
+
 func TestRunDryRunListsPromptArtifactsWhenIncluded(t *testing.T) {
 	outDir := t.TempDir()
 	cfg := cli.RunConfig{

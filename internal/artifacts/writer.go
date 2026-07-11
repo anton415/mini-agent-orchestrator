@@ -102,6 +102,9 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 	missingPaths := make([]string, 0, len(paths))
 
 	for _, path := range paths {
+		if err := rejectSymlinkedOutputPath(outDir, path); err != nil {
+			return err
+		}
 		if _, exists := seen[path]; exists {
 			return fmt.Errorf("duplicate output path: %s", path)
 		}
@@ -148,6 +151,41 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 			return fmt.Errorf("check output parent for %s: %w", path, err)
 		}
 		probedParents[probeKey] = struct{}{}
+	}
+
+	return nil
+}
+
+func rejectSymlinkedOutputPath(outputRoot string, path string) error {
+	relative, err := filepath.Rel(outputRoot, path)
+	if err != nil {
+		return fmt.Errorf("check output path %s relative to output root: %w", path, err)
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || filepath.IsAbs(relative) {
+		return fmt.Errorf("invalid output path %s: path escapes output root", path)
+	}
+
+	current := filepath.Clean(outputRoot)
+	components := []string{current}
+	if relative != "." {
+		for _, component := range strings.Split(relative, string(os.PathSeparator)) {
+			current = filepath.Join(current, component)
+			components = append(components, current)
+		}
+	}
+
+	for _, component := range components {
+		info, lstatErr := os.Lstat(component)
+		if lstatErr == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("invalid output path %s: symbolic links are not allowed", component)
+			}
+			continue
+		}
+		if os.IsNotExist(lstatErr) {
+			return nil
+		}
+		return fmt.Errorf("check output path component %s: %w", component, lstatErr)
 	}
 
 	return nil

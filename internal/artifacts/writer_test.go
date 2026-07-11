@@ -255,6 +255,103 @@ func TestCheckWritableForceStillRejectsInvalidOutputPaths(t *testing.T) {
 	})
 }
 
+func TestCheckWritableRejectsSymlinkedOutputPaths(t *testing.T) {
+	t.Run("dangling artifact target", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		projectDir := filepath.Join(outDir, project.Name)
+		if err := os.MkdirAll(projectDir, 0755); err != nil {
+			t.Fatalf("create project directory: %v", err)
+		}
+		outsidePath := filepath.Join(t.TempDir(), "outside-idea.md")
+		linkPath := filepath.Join(projectDir, "idea.md")
+		createSymlinkOrSkip(t, outsidePath, linkPath)
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "idea.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") || !strings.Contains(err.Error(), "idea.md") {
+			t.Fatalf("error = %q, want dangling artifact symlink context", err.Error())
+		}
+		if _, statErr := os.Stat(outsidePath); !os.IsNotExist(statErr) {
+			t.Fatalf("outside target stat error = %v, want not exist", statErr)
+		}
+	})
+
+	t.Run("existing artifact target", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		projectDir := filepath.Join(outDir, project.Name)
+		if err := os.MkdirAll(projectDir, 0755); err != nil {
+			t.Fatalf("create project directory: %v", err)
+		}
+		outsidePath := filepath.Join(t.TempDir(), "outside-idea.md")
+		if err := os.WriteFile(outsidePath, []byte("keep outside"), 0644); err != nil {
+			t.Fatalf("write outside target: %v", err)
+		}
+		createSymlinkOrSkip(t, outsidePath, filepath.Join(projectDir, "idea.md"))
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "idea.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") {
+			t.Fatalf("error = %q, want existing artifact symlink error", err.Error())
+		}
+		assertFileContent(t, outsidePath, "keep outside")
+	})
+
+	t.Run("selected output directory", func(t *testing.T) {
+		outDir := filepath.Join(t.TempDir(), "artifacts")
+		project := testProject()
+		outsideOutDir := t.TempDir()
+		createSymlinkOrSkip(t, outsideOutDir, outDir)
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "idea.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") || !strings.Contains(err.Error(), "artifacts") {
+			t.Fatalf("error = %q, want symlinked output directory context", err.Error())
+		}
+	})
+
+	t.Run("project directory", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		outsideProjectDir := t.TempDir()
+		createSymlinkOrSkip(t, outsideProjectDir, filepath.Join(outDir, project.Name))
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "idea.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") || !strings.Contains(err.Error(), project.Name) {
+			t.Fatalf("error = %q, want symlinked project directory context", err.Error())
+		}
+	})
+
+	t.Run("prompt parent", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		projectDir := filepath.Join(outDir, project.Name)
+		if err := os.MkdirAll(projectDir, 0755); err != nil {
+			t.Fatalf("create project directory: %v", err)
+		}
+		outsidePromptsDir := t.TempDir()
+		createSymlinkOrSkip(t, outsidePromptsDir, filepath.Join(projectDir, "prompts"))
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "prompts/generated.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") || !strings.Contains(err.Error(), "prompts") {
+			t.Fatalf("error = %q, want symlinked prompt parent context", err.Error())
+		}
+	})
+}
+
 func TestCheckWritableRejectsUnwritableOutputParents(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -539,6 +636,14 @@ func makeFileUnwritable(t *testing.T, path string) {
 		t.Fatalf("close permission control file: %v", closeErr)
 	}
 	t.Skip("filesystem or effective user does not enforce file write mode bits")
+}
+
+func createSymlinkOrSkip(t *testing.T, target string, link string) {
+	t.Helper()
+
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks are not available in this test environment: %v", err)
+	}
 }
 
 func assertProject(t *testing.T, got model.Project, want model.Project) {
