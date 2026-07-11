@@ -2,12 +2,24 @@ package model
 
 import "time"
 
+// GenerationModeLLM identifies artifacts produced through LLM execution.
+const GenerationModeLLM = "llm"
+
+// GenerationMetadata identifies how project artifacts were generated without
+// including provider credentials or other secret configuration.
+type GenerationMetadata struct {
+	Mode     string
+	Provider string
+	Model    string
+}
+
 // Project represents a project with its name, raw idea, creation time, and version.
 type Project struct {
-	Name      string
-	RawIdea   string
-	CreatedAt time.Time
-	Version   string
+	Name       string
+	RawIdea    string
+	CreatedAt  time.Time
+	Version    string
+	Generation *GenerationMetadata `json:",omitempty"`
 }
 
 // NewProject creates a new Project instance with the given name and raw idea, setting the creation time to now and version to "v0".
