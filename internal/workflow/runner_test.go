@@ -301,6 +301,76 @@ func TestRunLLMChecksOutputBeforeProviderCalls(t *testing.T) {
 	}
 }
 
+func TestRunLLMForceChecksInvalidOutputBeforeProviderCalls(t *testing.T) {
+	tests := []struct {
+		name           string
+		includePrompts bool
+		setup          func(t *testing.T, projectDir string)
+		wantPath       string
+	}{
+		{
+			name: "project directory is a file",
+			setup: func(t *testing.T, projectDir string) {
+				t.Helper()
+				if err := os.WriteFile(projectDir, []byte("not a directory"), 0644); err != nil {
+					t.Fatalf("write blocking project path: %v", err)
+				}
+			},
+			wantPath: "book-library",
+		},
+		{
+			name:           "prompt parent is a file",
+			includePrompts: true,
+			setup: func(t *testing.T, projectDir string) {
+				t.Helper()
+				if err := os.MkdirAll(projectDir, 0755); err != nil {
+					t.Fatalf("create project directory: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(projectDir, "prompts"), []byte("not a directory"), 0644); err != nil {
+					t.Fatalf("write blocking prompt path: %v", err)
+				}
+			},
+			wantPath: "prompts",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server, capturedPrompts := newWorkflowLLMServer(t, []string{
+				"# Generated Idea",
+				"# Generated Specification",
+				"# Generated Tasks",
+				"# Generated Review Checklist",
+			}, -1)
+			setValidWorkflowLLMEnv(t, server.URL+"/v1", "sk-test-secret")
+
+			outDir := t.TempDir()
+			projectDir := filepath.Join(outDir, "book-library")
+			test.setup(t, projectDir)
+
+			err := Run(cli.RunConfig{
+				Idea:           "Build a personal book library",
+				Out:            outDir,
+				Name:           "book-library",
+				Force:          true,
+				IncludePrompts: test.includePrompts,
+				LLM:            true,
+			})
+			if err == nil {
+				t.Fatal("Run returned nil error for invalid forced output")
+			}
+			for _, want := range []string{"check artifact output", test.wantPath} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %q, want message containing %q", err.Error(), want)
+				}
+			}
+			if got := len(capturedPrompts()); got != 0 {
+				t.Fatalf("provider calls = %d, want 0 when forced output preflight fails", got)
+			}
+		})
+	}
+}
+
 func TestRunDryRunListsPromptArtifactsWhenIncluded(t *testing.T) {
 	outDir := t.TempDir()
 	cfg := cli.RunConfig{

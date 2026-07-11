@@ -190,6 +190,63 @@ func TestCheckWritableDoesNotCreateProjectDirectory(t *testing.T) {
 	}
 }
 
+func TestCheckWritableForceStillRejectsInvalidOutputPaths(t *testing.T) {
+	t.Run("project directory is a file", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		projectPath := filepath.Join(outDir, project.Name)
+		if err := os.WriteFile(projectPath, []byte("not a directory"), 0644); err != nil {
+			t.Fatalf("write blocking project path: %v", err)
+		}
+
+		err := CheckWritable(outDir, project, testArtifacts(), true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "check output path") || !strings.Contains(err.Error(), project.Name) {
+			t.Fatalf("error = %q, want invalid project directory context", err.Error())
+		}
+	})
+
+	t.Run("prompt parent is a file", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		projectDir := filepath.Join(outDir, project.Name)
+		if err := os.MkdirAll(projectDir, 0755); err != nil {
+			t.Fatalf("create project directory: %v", err)
+		}
+		promptsPath := filepath.Join(projectDir, "prompts")
+		if err := os.WriteFile(promptsPath, []byte("not a directory"), 0644); err != nil {
+			t.Fatalf("write blocking prompt path: %v", err)
+		}
+
+		err := CheckWritable(outDir, project, testArtifacts(), true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "check output path") || !strings.Contains(err.Error(), "prompts") {
+			t.Fatalf("error = %q, want invalid prompt parent context", err.Error())
+		}
+	})
+
+	t.Run("artifact target is a directory", func(t *testing.T) {
+		outDir := t.TempDir()
+		project := testProject()
+		artifactPath := filepath.Join(outDir, project.Name, "idea.md")
+		if err := os.MkdirAll(artifactPath, 0755); err != nil {
+			t.Fatalf("create blocking artifact directory: %v", err)
+		}
+
+		err := CheckWritable(outDir, project, testArtifacts(), true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "existing target must be a regular file") {
+			t.Fatalf("error = %q, want invalid target type", err.Error())
+		}
+	})
+}
+
 func TestWriteAllOverwritesExistingFilesWithForce(t *testing.T) {
 	outDir := t.TempDir()
 	project := testProject()

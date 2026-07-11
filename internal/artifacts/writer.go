@@ -96,10 +96,6 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 	}
 	paths = append(paths, metadataPath)
 
-	if force {
-		return nil
-	}
-
 	seen := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
 		if _, exists := seen[path]; exists {
@@ -107,8 +103,14 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 		}
 		seen[path] = struct{}{}
 
-		if _, err := os.Stat(path); err == nil {
-			return fmt.Errorf("file already exists: %s; use --force to overwrite", path)
+		info, err := os.Stat(path)
+		if err == nil {
+			if !force {
+				return fmt.Errorf("file already exists: %s; use --force to overwrite", path)
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("invalid output path %s: existing target must be a regular file", path)
+			}
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("check output path %s: %w", path, err)
 		}
