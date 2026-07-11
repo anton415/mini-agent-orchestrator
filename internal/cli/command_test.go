@@ -140,6 +140,77 @@ func TestParseRunArgsRejectsInvalidCreatedAt(t *testing.T) {
 	}
 }
 
+func TestParseRunArgsParsesLLMFlags(t *testing.T) {
+	got, err := ParseRunArgs([]string{
+		"--idea", "Build a personal book library",
+		"--llm",
+		"--llm-provider", "openai-compatible",
+		"--llm-base-url", "https://api.openai.com/v1",
+		"--llm-model", "gpt-4.1-mini",
+	})
+	if err != nil {
+		t.Fatalf("ParseRunArgs returned an error: %v", err)
+	}
+
+	want := RunConfig{
+		Idea:        "Build a personal book library",
+		Out:         "./artifacts",
+		Name:        "project",
+		LLM:         true,
+		LLMProvider: "openai-compatible",
+		LLMBaseURL:  "https://api.openai.com/v1",
+		LLMModel:    "gpt-4.1-mini",
+	}
+	assertRunConfig(t, got, want)
+}
+
+func TestParseRunArgsLeavesLLMModeDisabledByDefault(t *testing.T) {
+	got, err := ParseRunArgs([]string{"--idea", "Build a personal book library"})
+	if err != nil {
+		t.Fatalf("ParseRunArgs returned an error: %v", err)
+	}
+
+	if got.LLM {
+		t.Fatal("LLM = true, want false when --llm is omitted")
+	}
+	if got.LLMProvider != "" || got.LLMBaseURL != "" || got.LLMModel != "" {
+		t.Fatalf("LLM overrides = (%q, %q, %q), want empty defaults", got.LLMProvider, got.LLMBaseURL, got.LLMModel)
+	}
+}
+
+func TestParseRunArgsDoesNotEnableLLMModeFromOverrides(t *testing.T) {
+	got, err := ParseRunArgs([]string{
+		"--idea", "Build a personal book library",
+		"--llm-provider", "openai-compatible",
+		"--llm-base-url", "https://api.openai.com/v1",
+		"--llm-model", "gpt-4.1-mini",
+	})
+	if err != nil {
+		t.Fatalf("ParseRunArgs returned an error: %v", err)
+	}
+
+	if got.LLM {
+		t.Fatal("LLM = true, want false when only LLM overrides are provided")
+	}
+	if got.LLMProvider != "openai-compatible" || got.LLMBaseURL != "https://api.openai.com/v1" || got.LLMModel != "gpt-4.1-mini" {
+		t.Fatalf("LLM overrides = (%q, %q, %q), want parsed override values", got.LLMProvider, got.LLMBaseURL, got.LLMModel)
+	}
+}
+
+func TestParseRunArgsRejectsAPIKeyFlags(t *testing.T) {
+	for _, flagName := range []string{"--api-key", "--llm-api-key"} {
+		t.Run(flagName, func(t *testing.T) {
+			_, err := ParseRunArgs([]string{"--idea", "demo", flagName, "test-placeholder"})
+			if err == nil {
+				t.Fatalf("ParseRunArgs accepted unsupported API key flag %s", flagName)
+			}
+			if !strings.Contains(err.Error(), "flag provided but not defined") {
+				t.Fatalf("error = %q, want unknown-flag error", err.Error())
+			}
+		})
+	}
+}
+
 // assertRunConfig keeps individual tests focused on their argument setup while
 // still reporting the complete parsed config when a field differs.
 func assertRunConfig(t *testing.T, got RunConfig, want RunConfig) {
