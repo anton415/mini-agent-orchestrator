@@ -157,35 +157,49 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 }
 
 func rejectSymlinkedOutputPath(outputRoot string, path string) error {
-	relative, err := filepath.Rel(outputRoot, path)
+	absoluteRoot, err := filepath.Abs(outputRoot)
 	if err != nil {
-		return fmt.Errorf("check output path %s relative to output root: %w", path, err)
+		return fmt.Errorf("resolve absolute output root %s: %w", outputRoot, err)
+	}
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve absolute output path %s: %w", path, err)
+	}
+
+	relative, err := filepath.Rel(absoluteRoot, absolutePath)
+	if err != nil {
+		return fmt.Errorf("check output path %s relative to output root: %w", absolutePath, err)
 	}
 	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || filepath.IsAbs(relative) {
-		return fmt.Errorf("invalid output path %s: path escapes output root", path)
+		return fmt.Errorf("invalid output path %s: path escapes output root", absolutePath)
 	}
 
-	current := filepath.Clean(outputRoot)
-	components := []string{current}
-	if relative != "." {
-		for _, component := range strings.Split(relative, string(os.PathSeparator)) {
-			current = filepath.Join(current, component)
-			components = append(components, current)
-		}
+	volume := filepath.VolumeName(absolutePath)
+	volumeRoot := volume + string(os.PathSeparator)
+	remainder := strings.TrimPrefix(absolutePath, volumeRoot)
+	if remainder == "" {
+		return nil
 	}
 
-	for _, component := range components {
-		info, lstatErr := os.Lstat(component)
+	current := volumeRoot
+	for index, component := range strings.Split(remainder, string(os.PathSeparator)) {
+		current = filepath.Join(current, component)
+		info, lstatErr := os.Lstat(current)
 		if lstatErr == nil {
 			if info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("invalid output path %s: symbolic links are not allowed", component)
+				// Direct children of the volume root may be platform aliases, such
+				// as /var -> /private/var and /tmp -> /private/tmp on macOS.
+				if index == 0 {
+					continue
+				}
+				return fmt.Errorf("invalid output path %s: symbolic links are not allowed", current)
 			}
 			continue
 		}
 		if os.IsNotExist(lstatErr) {
 			return nil
 		}
-		return fmt.Errorf("check output path component %s: %w", component, lstatErr)
+		return fmt.Errorf("check output path component %s: %w", current, lstatErr)
 	}
 
 	return nil

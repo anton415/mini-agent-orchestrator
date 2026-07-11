@@ -456,6 +456,49 @@ func TestRunLLMRejectsSymlinkedOutputBeforeProviderCalls(t *testing.T) {
 	}
 }
 
+func TestRunLLMRejectsSymlinkedOutputAncestorBeforeProviderCalls(t *testing.T) {
+	server, capturedPrompts := newWorkflowLLMServer(t, []string{
+		"# Generated Idea",
+		"# Generated Specification",
+		"# Generated Tasks",
+		"# Generated Review Checklist",
+	}, -1)
+	setValidWorkflowLLMEnv(t, server.URL+"/v1", "sk-test-secret")
+
+	baseDir := t.TempDir()
+	outsideDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outsideDir, "existing"), 0755); err != nil {
+		t.Fatalf("create existing outside descendant: %v", err)
+	}
+	linkPath := filepath.Join(baseDir, "linked-parent")
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Skipf("symlinks are not available in this test environment: %v", err)
+	}
+	outDir := filepath.Join(linkPath, "existing", "artifacts")
+
+	err := Run(cli.RunConfig{
+		Idea:  "Build a personal book library",
+		Out:   outDir,
+		Name:  "book-library",
+		Force: true,
+		LLM:   true,
+	})
+	if err == nil {
+		t.Fatal("Run returned nil error for symlinked output ancestor")
+	}
+	for _, want := range []string{"check artifact output", "symbolic links are not allowed", "linked-parent"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want message containing %q", err.Error(), want)
+		}
+	}
+	if got := len(capturedPrompts()); got != 0 {
+		t.Fatalf("provider calls = %d, want 0 when output ancestor preflight fails", got)
+	}
+	if _, statErr := os.Stat(filepath.Join(outsideDir, "existing", "artifacts")); !os.IsNotExist(statErr) {
+		t.Fatalf("outside output directory stat error = %v, want not exist", statErr)
+	}
+}
+
 func TestRunDryRunListsPromptArtifactsWhenIncluded(t *testing.T) {
 	outDir := t.TempDir()
 	cfg := cli.RunConfig{

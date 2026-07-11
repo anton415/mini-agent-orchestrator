@@ -317,6 +317,29 @@ func TestCheckWritableRejectsSymlinkedOutputPaths(t *testing.T) {
 		}
 	})
 
+	t.Run("missing output below symlinked ancestor", func(t *testing.T) {
+		baseDir := t.TempDir()
+		outsideDir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(outsideDir, "existing"), 0755); err != nil {
+			t.Fatalf("create existing outside descendant: %v", err)
+		}
+		linkPath := filepath.Join(baseDir, "linked-parent")
+		createSymlinkOrSkip(t, outsideDir, linkPath)
+		outDir := filepath.Join(linkPath, "existing", "artifacts")
+		project := testProject()
+
+		err := CheckWritable(outDir, project, []Artifact{{Filename: "idea.md", Content: "replacement"}}, true)
+		if err == nil {
+			t.Fatal("CheckWritable returned nil error")
+		}
+		if !strings.Contains(err.Error(), "symbolic links are not allowed") || !strings.Contains(err.Error(), "linked-parent") {
+			t.Fatalf("error = %q, want symlinked output ancestor context", err.Error())
+		}
+		if _, statErr := os.Stat(filepath.Join(outsideDir, "existing", "artifacts")); !os.IsNotExist(statErr) {
+			t.Fatalf("outside output directory stat error = %v, want not exist", statErr)
+		}
+	})
+
 	t.Run("project directory", func(t *testing.T) {
 		outDir := t.TempDir()
 		project := testProject()
