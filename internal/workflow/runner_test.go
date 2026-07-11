@@ -68,6 +68,29 @@ func TestRunOmitsPromptArtifactsByDefault(t *testing.T) {
 	}
 }
 
+func TestRunRejectsLLMModeUntilExecutionIsImplemented(t *testing.T) {
+	outDir := t.TempDir()
+	cfg := cli.RunConfig{
+		Idea: "Build a personal book library",
+		Out:  outDir,
+		Name: "book-library",
+		LLM:  true,
+	}
+
+	err := Run(cfg)
+	if err == nil {
+		t.Fatal("Run returned nil error for unsupported LLM execution")
+	}
+	if !strings.Contains(err.Error(), "LLM execution is not implemented yet") {
+		t.Fatalf("error = %q, want unsupported LLM execution message", err.Error())
+	}
+
+	projectDir := filepath.Join(outDir, cfg.Name)
+	if _, statErr := os.Stat(projectDir); !os.IsNotExist(statErr) {
+		t.Fatalf("project directory stat error = %v, want not exist", statErr)
+	}
+}
+
 func TestRunDryRunListsPromptArtifactsWhenIncluded(t *testing.T) {
 	outDir := t.TempDir()
 	cfg := cli.RunConfig{

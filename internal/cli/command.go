@@ -16,6 +16,10 @@ type RunConfig struct {
 	Force          bool
 	DryRun         bool
 	IncludePrompts bool
+	LLM            bool
+	LLMProvider    string
+	LLMBaseURL     string
+	LLMModel       string
 }
 
 // ParseRunArgs parses flags that appear after `mao run`.
@@ -36,6 +40,10 @@ func ParseRunArgs(args []string) (RunConfig, error) {
 	runCommandFlags.BoolVar(&runCommandConfig.Force, "force", false, "overwrite existing files")
 	runCommandFlags.BoolVar(&runCommandConfig.DryRun, "dry-run", false, "show what would be created without writing files")
 	runCommandFlags.BoolVar(&runCommandConfig.IncludePrompts, "include-prompts", false, "generate copyable manual LLM prompt files")
+	runCommandFlags.BoolVar(&runCommandConfig.LLM, "llm", false, "generate artifacts with an LLM")
+	runCommandFlags.StringVar(&runCommandConfig.LLMProvider, "llm-provider", "", "LLM provider override")
+	runCommandFlags.StringVar(&runCommandConfig.LLMBaseURL, "llm-base-url", "", "LLM API base URL override")
+	runCommandFlags.StringVar(&runCommandConfig.LLMModel, "llm-model", "", "LLM model override")
 
 	// 3. Parse user args into the struct fields.
 	// Parse the flags from the provided arguments. If there's an error, return it.
