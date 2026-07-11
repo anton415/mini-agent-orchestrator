@@ -13,6 +13,10 @@ import (
 
 // Run executes the workflow to generate artifacts based on the provided configuration.
 func Run(cfg cli.RunConfig) error {
+	if cfg.LLM {
+		return fmt.Errorf("LLM execution is not implemented yet; run without --llm to use deterministic mode")
+	}
+
 	// Read the idea text from the input source (file or stdin).
 	ideaText, err := input.ReadIdea(cfg.Idea, cfg.Input)
 	if err != nil {
