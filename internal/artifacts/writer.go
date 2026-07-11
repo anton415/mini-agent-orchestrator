@@ -76,8 +76,9 @@ func WriteAll(outDir string, project model.Project, items []Artifact, force bool
 	return os.WriteFile(metadataPath, append(data, '\n'), 0644)
 }
 
-// CheckWritable validates every output path and checks overwrite collisions
-// without creating directories or writing files.
+// CheckWritable validates every output path, checks overwrite collisions, and
+// probes the filesystem operations needed to create or replace the outputs.
+// A successful check leaves no temporary probe entries behind.
 func CheckWritable(outDir string, project model.Project, items []Artifact, force bool) error {
 	projectDir := filepath.Join(outDir, project.Name)
 	paths := make([]string, 0, len(items)+1)
@@ -97,6 +98,9 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 	paths = append(paths, metadataPath)
 
 	seen := make(map[string]struct{}, len(paths))
+	existingPaths := make([]string, 0, len(paths))
+	missingPaths := make([]string, 0, len(paths))
+
 	for _, path := range paths {
 		if _, exists := seen[path]; exists {
 			return fmt.Errorf("duplicate output path: %s", path)
@@ -111,9 +115,114 @@ func CheckWritable(outDir string, project model.Project, items []Artifact, force
 			if !info.Mode().IsRegular() {
 				return fmt.Errorf("invalid output path %s: existing target must be a regular file", path)
 			}
+			existingPaths = append(existingPaths, path)
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("check output path %s: %w", path, err)
+		} else {
+			missingPaths = append(missingPaths, path)
 		}
+	}
+
+	for _, path := range existingPaths {
+		if err := checkExistingFileWritable(path); err != nil {
+			return err
+		}
+	}
+
+	type parentProbe struct {
+		directory string
+		exact     bool
+	}
+	probedParents := make(map[parentProbe]struct{}, len(missingPaths))
+	for _, path := range missingPaths {
+		parentDir, exact, err := nearestExistingDirectory(filepath.Dir(path))
+		if err != nil {
+			return fmt.Errorf("check output parent for %s: %w", path, err)
+		}
+
+		probeKey := parentProbe{directory: parentDir, exact: exact}
+		if _, ok := probedParents[probeKey]; ok {
+			continue
+		}
+		if err := probeOutputCreation(parentDir, exact); err != nil {
+			return fmt.Errorf("check output parent for %s: %w", path, err)
+		}
+		probedParents[probeKey] = struct{}{}
+	}
+
+	return nil
+}
+
+func checkExistingFileWritable(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("check existing output file %s is writable: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close writable output file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func nearestExistingDirectory(path string) (directory string, exact bool, err error) {
+	wanted := filepath.Clean(path)
+	current := wanted
+
+	for {
+		info, statErr := os.Stat(current)
+		if statErr == nil {
+			if !info.IsDir() {
+				return "", false, fmt.Errorf("invalid output parent %s: existing path must be a directory", current)
+			}
+			return current, current == wanted, nil
+		}
+		if !os.IsNotExist(statErr) {
+			return "", false, fmt.Errorf("check output parent %s: %w", current, statErr)
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", false, fmt.Errorf("no existing directory found for %s", wanted)
+		}
+		current = parent
+	}
+}
+
+func probeOutputCreation(parentDir string, parentExists bool) error {
+	if parentExists {
+		return probeFileCreation(parentDir)
+	}
+
+	probeDir, err := os.MkdirTemp(parentDir, ".mao-write-check-*")
+	if err != nil {
+		return fmt.Errorf("create temporary directory in %s: %w", parentDir, err)
+	}
+
+	if err := probeFileCreation(probeDir); err != nil {
+		_ = os.RemoveAll(probeDir)
+		return err
+	}
+	if err := os.Remove(probeDir); err != nil {
+		return fmt.Errorf("remove temporary directory %s: %w", probeDir, err)
+	}
+
+	return nil
+}
+
+func probeFileCreation(parentDir string) error {
+	probe, err := os.CreateTemp(parentDir, ".mao-write-check-*")
+	if err != nil {
+		return fmt.Errorf("create temporary file in %s: %w", parentDir, err)
+	}
+	probePath := probe.Name()
+
+	if err := probe.Close(); err != nil {
+		_ = os.Remove(probePath)
+		return fmt.Errorf("close temporary file %s: %w", probePath, err)
+	}
+	if err := os.Remove(probePath); err != nil {
+		return fmt.Errorf("remove temporary file %s: %w", probePath, err)
 	}
 
 	return nil

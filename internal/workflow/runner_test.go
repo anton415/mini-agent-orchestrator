@@ -371,6 +371,49 @@ func TestRunLLMForceChecksInvalidOutputBeforeProviderCalls(t *testing.T) {
 	}
 }
 
+func TestRunLLMChecksDirectoryWritabilityBeforeProviderCalls(t *testing.T) {
+	server, capturedPrompts := newWorkflowLLMServer(t, []string{
+		"# Generated Idea",
+		"# Generated Specification",
+		"# Generated Tasks",
+		"# Generated Review Checklist",
+	}, -1)
+	setValidWorkflowLLMEnv(t, server.URL+"/v1", "sk-test-secret")
+
+	outDir := t.TempDir()
+	projectDir := filepath.Join(outDir, "book-library")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("create project directory: %v", err)
+	}
+	makeWorkflowDirectoryUnwritable(t, projectDir)
+
+	err := Run(cli.RunConfig{
+		Idea:  "Build a personal book library",
+		Out:   outDir,
+		Name:  "book-library",
+		Force: true,
+		LLM:   true,
+	})
+	if err == nil {
+		t.Fatal("Run returned nil error for unwritable project directory")
+	}
+	for _, want := range []string{"check artifact output", "check output parent", "book-library"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want message containing %q", err.Error(), want)
+		}
+	}
+	if got := len(capturedPrompts()); got != 0 {
+		t.Fatalf("provider calls = %d, want 0 when directory writability preflight fails", got)
+	}
+	entries, readErr := os.ReadDir(projectDir)
+	if readErr != nil {
+		t.Fatalf("read project directory: %v", readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("project directory contains %d entries, want no artifacts or probe residue", len(entries))
+	}
+}
+
 func TestRunDryRunListsPromptArtifactsWhenIncluded(t *testing.T) {
 	outDir := t.TempDir()
 	cfg := cli.RunConfig{
@@ -569,6 +612,34 @@ func assertWorkflowFileContent(t *testing.T, path string, want string) {
 	if string(data) != want {
 		t.Fatalf("%s = %q, want %q", path, string(data), want)
 	}
+}
+
+func makeWorkflowDirectoryUnwritable(t *testing.T, path string) {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat directory before chmod: %v", err)
+	}
+	if err := os.Chmod(path, 0555); err != nil {
+		t.Fatalf("make directory unwritable: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(path, info.Mode().Perm())
+	})
+
+	probe, err := os.CreateTemp(path, ".permission-control-*")
+	if err != nil {
+		return
+	}
+	probePath := probe.Name()
+	if closeErr := probe.Close(); closeErr != nil {
+		t.Fatalf("close permission control file: %v", closeErr)
+	}
+	if removeErr := os.Remove(probePath); removeErr != nil {
+		t.Fatalf("remove permission control file: %v", removeErr)
+	}
+	t.Skip("filesystem or effective user does not enforce directory write mode bits")
 }
 
 func captureStdout(fn func() error) (string, error) {
