@@ -25,8 +25,23 @@ type Config struct {
 	APIKey   string
 }
 
+// ConfigOverrides contains the non-secret LLM settings that callers may
+// override without accepting credentials through command-line arguments.
+type ConfigOverrides struct {
+	Provider string
+	BaseURL  string
+	Model    string
+}
+
 // LoadConfigFromEnv reads LLM configuration from environment variables.
 func LoadConfigFromEnv(enabled bool) (Config, error) {
+	return LoadConfigFromEnvWithOverrides(enabled, ConfigOverrides{})
+}
+
+// LoadConfigFromEnvWithOverrides reads LLM configuration from environment
+// variables, applies non-empty non-secret overrides, and validates the merged
+// result. The API key is always read from the environment.
+func LoadConfigFromEnvWithOverrides(enabled bool, overrides ConfigOverrides) (Config, error) {
 	if !enabled {
 		return Config{}, nil
 	}
@@ -37,6 +52,16 @@ func LoadConfigFromEnv(enabled bool) (Config, error) {
 		BaseURL:  strings.TrimSpace(os.Getenv(EnvBaseURL)),
 		Model:    strings.TrimSpace(os.Getenv(EnvModel)),
 		APIKey:   strings.TrimSpace(os.Getenv(EnvAPIKey)),
+	}
+
+	if value := strings.TrimSpace(overrides.Provider); value != "" {
+		cfg.Provider = value
+	}
+	if value := strings.TrimSpace(overrides.BaseURL); value != "" {
+		cfg.BaseURL = value
+	}
+	if value := strings.TrimSpace(overrides.Model); value != "" {
+		cfg.Model = value
 	}
 
 	if err := cfg.Validate(); err != nil {

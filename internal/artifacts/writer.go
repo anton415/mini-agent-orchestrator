@@ -18,6 +18,10 @@ type Artifact struct {
 
 // WriteAll writes rendered project artifacts and project metadata into a project directory.
 func WriteAll(outDir string, project model.Project, items []Artifact, force bool) error {
+	if err := CheckWritable(outDir, project, items, force); err != nil {
+		return err
+	}
+
 	// Create the project directory if it doesn't exist.
 	projectDir := filepath.Join(outDir, project.Name)
 
@@ -70,6 +74,47 @@ func WriteAll(outDir string, project model.Project, items []Artifact, force bool
 
 	// Write the metadata JSON file with a final newline like the markdown artifacts.
 	return os.WriteFile(metadataPath, append(data, '\n'), 0644)
+}
+
+// CheckWritable validates every output path and checks overwrite collisions
+// without creating directories or writing files.
+func CheckWritable(outDir string, project model.Project, items []Artifact, force bool) error {
+	projectDir := filepath.Join(outDir, project.Name)
+	paths := make([]string, 0, len(items)+1)
+
+	for _, item := range items {
+		path, err := artifactPath(projectDir, item.Filename)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, path)
+	}
+
+	metadataPath, err := artifactPath(projectDir, "metadata.json")
+	if err != nil {
+		return err
+	}
+	paths = append(paths, metadataPath)
+
+	if force {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		if _, exists := seen[path]; exists {
+			return fmt.Errorf("duplicate output path: %s", path)
+		}
+		seen[path] = struct{}{}
+
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("file already exists: %s; use --force to overwrite", path)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("check output path %s: %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 func artifactPath(projectDir string, filename string) (string, error) {

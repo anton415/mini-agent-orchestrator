@@ -39,6 +39,113 @@ func TestLoadConfigFromEnvLoadsValidConfigWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestLoadConfigFromEnvWithOverridesMergesNonSecretSettings(t *testing.T) {
+	setValidLLMEnv(t)
+
+	got, err := LoadConfigFromEnvWithOverrides(true, ConfigOverrides{
+		Provider: "  openai-compatible  ",
+		BaseURL:  "  https://provider.example/v1  ",
+		Model:    "  override-model  ",
+	})
+	if err != nil {
+		t.Fatalf("LoadConfigFromEnvWithOverrides returned error: %v", err)
+	}
+
+	want := Config{
+		Enabled:  true,
+		Provider: ProviderOpenAICompatible,
+		BaseURL:  "https://provider.example/v1",
+		Model:    "override-model",
+		APIKey:   "sk-test-secret",
+	}
+	if got != want {
+		t.Fatalf("Config = %#v, want %#v", got, want)
+	}
+}
+
+func TestLoadConfigFromEnvWithOverridesFallsBackForEmptyOverrides(t *testing.T) {
+	setValidLLMEnv(t)
+
+	got, err := LoadConfigFromEnvWithOverrides(true, ConfigOverrides{
+		Provider: "  ",
+		BaseURL:  "https://provider.example/v1",
+	})
+	if err != nil {
+		t.Fatalf("LoadConfigFromEnvWithOverrides returned error: %v", err)
+	}
+
+	if got.Provider != ProviderOpenAICompatible {
+		t.Fatalf("Provider = %q, want environment value %q", got.Provider, ProviderOpenAICompatible)
+	}
+	if got.BaseURL != "https://provider.example/v1" {
+		t.Fatalf("BaseURL = %q, want override value", got.BaseURL)
+	}
+	if got.Model != "gpt-4.1-mini" {
+		t.Fatalf("Model = %q, want environment value", got.Model)
+	}
+	if got.APIKey != "sk-test-secret" {
+		t.Fatalf("APIKey = %q, want environment value", got.APIKey)
+	}
+}
+
+func TestLoadConfigFromEnvWithOverridesValidatesAfterMerge(t *testing.T) {
+	clearLLMEnv(t)
+	t.Setenv(EnvAPIKey, "sk-env-only-secret")
+
+	got, err := LoadConfigFromEnvWithOverrides(true, ConfigOverrides{
+		Provider: ProviderOpenAICompatible,
+		BaseURL:  "https://provider.example/v1",
+		Model:    "override-model",
+	})
+	if err != nil {
+		t.Fatalf("LoadConfigFromEnvWithOverrides returned error: %v", err)
+	}
+
+	if got.Provider != ProviderOpenAICompatible || got.BaseURL != "https://provider.example/v1" || got.Model != "override-model" {
+		t.Fatalf("merged config = %#v, want CLI-safe overrides", got)
+	}
+	if got.APIKey != "sk-env-only-secret" {
+		t.Fatalf("APIKey = %q, want environment value", got.APIKey)
+	}
+}
+
+func TestLoadConfigFromEnvWithOverridesStillRequiresEnvironmentAPIKey(t *testing.T) {
+	clearLLMEnv(t)
+
+	_, err := LoadConfigFromEnvWithOverrides(true, ConfigOverrides{
+		Provider: ProviderOpenAICompatible,
+		BaseURL:  "https://provider.example/v1",
+		Model:    "override-model",
+	})
+	if err == nil {
+		t.Fatal("LoadConfigFromEnvWithOverrides returned nil error")
+	}
+	if !strings.Contains(err.Error(), EnvAPIKey) {
+		t.Fatalf("error = %q, want message containing %q", err.Error(), EnvAPIKey)
+	}
+	for _, setting := range []string{EnvProvider, EnvBaseURL, EnvModel} {
+		if strings.Contains(err.Error(), setting) {
+			t.Fatalf("error = %q, did not expect merged setting %q to be missing", err.Error(), setting)
+		}
+	}
+}
+
+func TestLoadConfigFromEnvWithOverridesDoesNothingWhenDisabled(t *testing.T) {
+	setValidLLMEnv(t)
+
+	got, err := LoadConfigFromEnvWithOverrides(false, ConfigOverrides{
+		Provider: "unsupported-provider",
+		BaseURL:  "://invalid",
+		Model:    "override-model",
+	})
+	if err != nil {
+		t.Fatalf("LoadConfigFromEnvWithOverrides returned error: %v", err)
+	}
+	if got != (Config{}) {
+		t.Fatalf("Config = %#v, want zero value", got)
+	}
+}
+
 func TestLoadConfigFromEnvRejectsMissingRequiredValuesWhenEnabled(t *testing.T) {
 	clearLLMEnv(t)
 

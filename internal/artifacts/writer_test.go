@@ -116,6 +116,80 @@ func TestWriteAllRefusesOverwriteWithoutForce(t *testing.T) {
 	}
 }
 
+func TestWriteAllPreflightPreventsPartialWritesForLateCollisions(t *testing.T) {
+	tests := []struct {
+		name         string
+		existingPath string
+	}{
+		{
+			name:         "late artifact",
+			existingPath: "tasks.md",
+		},
+		{
+			name:         "metadata",
+			existingPath: "metadata.json",
+		},
+		{
+			name:         "late prompt",
+			existingPath: filepath.Join("prompts", "01-normalize-idea.prompt.md"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			outDir := t.TempDir()
+			project := testProject()
+			projectDir := filepath.Join(outDir, project.Name)
+			existingPath := filepath.Join(projectDir, test.existingPath)
+
+			if err := os.MkdirAll(filepath.Dir(existingPath), 0755); err != nil {
+				t.Fatalf("create existing file parent directory: %v", err)
+			}
+			if err := os.WriteFile(existingPath, []byte("keep me"), 0644); err != nil {
+				t.Fatalf("write existing file: %v", err)
+			}
+
+			err := WriteAll(outDir, project, testArtifacts(), false)
+			if err == nil {
+				t.Fatal("WriteAll returned nil error")
+			}
+			if !strings.Contains(err.Error(), "file already exists") || !strings.Contains(err.Error(), test.existingPath) {
+				t.Fatalf("error = %q, want collision for %q", err.Error(), test.existingPath)
+			}
+
+			assertFileContent(t, existingPath, "keep me")
+
+			outputPaths := []string{"metadata.json"}
+			for _, item := range testArtifacts() {
+				outputPaths = append(outputPaths, item.Filename)
+			}
+			for _, outputPath := range outputPaths {
+				if outputPath == test.existingPath {
+					continue
+				}
+				path := filepath.Join(projectDir, outputPath)
+				if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+					t.Fatalf("unexpected output %s stat error = %v, want not exist", outputPath, statErr)
+				}
+			}
+		})
+	}
+}
+
+func TestCheckWritableDoesNotCreateProjectDirectory(t *testing.T) {
+	outDir := filepath.Join(t.TempDir(), "nested", "artifacts")
+	project := testProject()
+
+	if err := CheckWritable(outDir, project, testArtifacts(), false); err != nil {
+		t.Fatalf("CheckWritable returned error: %v", err)
+	}
+
+	projectDir := filepath.Join(outDir, project.Name)
+	if _, err := os.Stat(projectDir); !os.IsNotExist(err) {
+		t.Fatalf("project directory stat error = %v, want not exist", err)
+	}
+}
+
 func TestWriteAllOverwritesExistingFilesWithForce(t *testing.T) {
 	outDir := t.TempDir()
 	project := testProject()
